@@ -44,5 +44,11 @@ public Player() { }
 
 	[Type(9, "string")]
 	public string name = default(string);
+
+	[Type(10, "number")]
+	public float spawnIndex = default(float);
+
+	[Type(11, "number")]
+	public float joinOrder = default(float);
 }
 

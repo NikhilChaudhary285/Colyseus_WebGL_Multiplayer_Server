@@ -5,10 +5,9 @@ import { Player } from "../schema/Player.js";
 export class MyRoom extends Room {
   maxClients = 4;
   state = new GameState();
+  joinCounter = 0;
 
   onCreate() {
-
-    // ✅ ALWAYS set state here
     this.state = new GameState();
     console.log("Room created:", this.roomId);
 
@@ -25,31 +24,19 @@ export class MyRoom extends Room {
       if (!p.sitting && !p.jumping)
         p.anim = data.anim ?? "idle";
     });
-
+    
     // ===== JUMP =====
     this.onMessage("jump", (client) => {
       const p = this.state.players.get(client.sessionId);
       if (!p) return;
-
       p.jumping = true;
-      p.anim = "jump";
-
-      this.clock.setTimeout(() => {
-        const player = this.state.players.get(client.sessionId);
-        if (!player) return;
-
-        player.jumping = false;
-        if (!player.sitting) player.anim = "idle";
-      }, 350);
     });
 
     // ===== SIT =====
     this.onMessage("sit", (client, sit) => {
       const p = this.state.players.get(client.sessionId);
       if (!p) return;
-
       p.sitting = sit;
-      p.anim = sit ? "sit" : "idle";
     });
 
     // ===== SKIN =====
@@ -72,22 +59,73 @@ export class MyRoom extends Room {
       if (!p) return;
       p.name = name || "Player";
     });
+
+    // ===== START GAME REQUEST =====
+    this.onMessage("startGame", (client) => {
+
+      // ONLY HOST MAY START
+      if (client.sessionId !== this.state.hostSessionId) return;
+
+      // VERIFY READY
+      let allReady = true;
+      this.state.players.forEach(p => {
+        if (!p.ready) allReady = false;
+      });
+
+      if (!allReady) return;
+
+      this.startCountdown();
+    });
+  }
+
+  startCountdown() {
+
+    this.state.countdown = 3;
+
+    const timer = this.clock.setInterval(() => {
+
+      this.state.countdown--;
+
+      if (this.state.countdown <= 0) {
+        timer.clear();
+        this.startMatch();
+      }
+
+    }, 1000);
+  }
+
+  startMatch() {
+
+    let index = 0;
+
+    this.state.players.forEach(p => {
+      p.spawnIndex = index++;
+    });
+
+    this.state.matchStarted = true;
+
+    console.log("MATCH STARTED");
   }
 
   onJoin(client: Client) {
 
-  const player = new Player();
+    const player = new Player();
 
-  this.state.players.set(client.sessionId, player);
+    player.joinOrder = this.joinCounter++;
+    player.spawnIndex = player.joinOrder;
+    player.ready = false;
+    player.name = "Player";
 
-  console.log("Player added to state:", this.state.players.size);
+    this.state.players.set(client.sessionId, player);
 
-  // FORCE STATE CHANGE (debug)
-  // this.broadcast("debug", "player joined");
-}
+    // FIRST PLAYER = HOST
+    if (!this.state.hostSessionId)
+      this.state.hostSessionId = client.sessionId;
+
+    console.log("Player joined:", client.sessionId);
+  }
 
   onLeave(client: Client) {
     this.state.players.delete(client.sessionId);
-    console.log("Player left:", client.sessionId);
   }
 }

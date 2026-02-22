@@ -17,5 +17,14 @@ public partial class GameState : Schema {
 public GameState() { }
 	[Type(0, "map", typeof(MapSchema<Player>))]
 	public MapSchema<Player> players = null;
+
+	[Type(1, "boolean")]
+	public bool matchStarted = default(bool);
+
+	[Type(2, "number")]
+	public float countdown = default(float);
+
+	[Type(3, "string")]
+	public string hostSessionId = default(string);
 }
 
