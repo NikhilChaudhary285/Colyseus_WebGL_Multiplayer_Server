@@ -38,11 +38,13 @@ export class MyRoom extends Room {
       const p = this.state.players.get(client.sessionId);
       if (!p) return;
 
-      // set jump true so clients trigger animation
+      // avoid retrigger while already jumping
+      if (p.jumping) return;
+
       p.jumping = true;
 
-      // reset shortly after so it behaves like a trigger
-      setTimeout(() => {
+      // use Colyseus clock instead of setTimeout
+      this.clock.setTimeout(() => {
         const player = this.state.players.get(client.sessionId);
         if (player) player.jumping = false;
       }, 120);
