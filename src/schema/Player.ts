@@ -13,4 +13,8 @@ export class Player extends Schema {
 
   @type("string") anim = "idle";
   @type("number") skin = 0;
+
+  // 👇 LOBBY FEATURES
+  @type("boolean") ready = false;     // ready button state
+  @type("string") name = "Player";    // player name for lobby list
 }
