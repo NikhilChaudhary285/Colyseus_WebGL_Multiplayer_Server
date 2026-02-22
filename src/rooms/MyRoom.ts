@@ -7,6 +7,14 @@ export class MyRoom extends Room {
   state = new GameState();
   joinCounter = 0;
 
+  // NEW: SPAWN POINTS
+  spawnPoints = [
+    { x: -1, y: 0, z: -1 },
+    { x: 1, y: 0, z: -1 },
+    { x: -3, y: 0, z: 1 },
+    { x: 3, y: 0, z: 1 },
+  ];
+
   onCreate() {
     this.state = new GameState();
     console.log("Room created:", this.roomId);
@@ -24,12 +32,20 @@ export class MyRoom extends Room {
       if (!p.sitting && !p.jumping)
         p.anim = data.anim ?? "idle";
     });
-    
+
     // ===== JUMP =====
     this.onMessage("jump", (client) => {
       const p = this.state.players.get(client.sessionId);
       if (!p) return;
+
+      // set jump true so clients trigger animation
       p.jumping = true;
+
+      // reset shortly after so it behaves like a trigger
+      setTimeout(() => {
+        const player = this.state.players.get(client.sessionId);
+        if (player) player.jumping = false;
+      }, 120);
     });
 
     // ===== SIT =====
@@ -63,10 +79,8 @@ export class MyRoom extends Room {
     // ===== START GAME REQUEST =====
     this.onMessage("startGame", (client) => {
 
-      // ONLY HOST MAY START
       if (client.sessionId !== this.state.hostSessionId) return;
 
-      // VERIFY READY
       let allReady = true;
       this.state.players.forEach(p => {
         if (!p.ready) allReady = false;
@@ -103,7 +117,6 @@ export class MyRoom extends Room {
     });
 
     this.state.matchStarted = true;
-
     console.log("MATCH STARTED");
   }
 
@@ -111,8 +124,18 @@ export class MyRoom extends Room {
 
     const player = new Player();
 
+    // assign join order
     player.joinOrder = this.joinCounter++;
-    player.spawnIndex = player.joinOrder;
+
+    // assign spawn index safely
+    player.spawnIndex = player.joinOrder % this.spawnPoints.length;
+
+    // set initial spawn position
+    const spawn = this.spawnPoints[player.spawnIndex];
+    player.x = spawn.x;
+    player.y = spawn.y;
+    player.z = spawn.z;
+
     player.ready = false;
     player.name = "Player";
 
@@ -122,7 +145,7 @@ export class MyRoom extends Room {
     if (!this.state.hostSessionId)
       this.state.hostSessionId = client.sessionId;
 
-    console.log("Player joined:", client.sessionId);
+    console.log("Player joined:", client.sessionId, "Spawn:", player.spawnIndex);
   }
 
   onLeave(client: Client) {
